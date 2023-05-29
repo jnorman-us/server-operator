@@ -3,7 +3,10 @@ package minecraftserver
 import (
 	"context"
 
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
 	mcspv1 "mcsp.com/server-operator/api/v1"
+
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -21,6 +24,15 @@ func (i Initializing) CheckConditions(c *Conditions) bool {
 
 func (i Initializing) Action(ctx context.Context, r *Reconciler, c *Conditions) error {
 	log := log.FromContext(ctx)
+
+	if !controllerutil.ContainsFinalizer(c.ms, minecraftServerFinalizer) {
+		controllerutil.AddFinalizer(c.ms, minecraftServerFinalizer)
+		if err := r.Update(ctx, c.ms); err != nil {
+			log.Error(err, "failed to add Finalizer")
+			return err
+		}
+		log.V(1).Info("added Finalizer")
+	}
 
 	if !storageExists(c.storage) {
 		desiredPVC, err := r.constructStorage(c.ms)

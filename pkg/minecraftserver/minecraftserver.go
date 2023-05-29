@@ -23,10 +23,12 @@ func serverNeedsBackup(ms *mcspv1.MinecraftServer) bool {
 	}
 	return false
 }
+func serverTerminating(ms *mcspv1.MinecraftServer) bool {
+	return ms != nil && !ms.ObjectMeta.DeletionTimestamp.IsZero()
+}
 
 func (r *Reconciler) updateServerStatus(
 	ctx context.Context,
-	ms *mcspv1.MinecraftServer,
 	state mcspv1.ServerState,
 	c *Conditions,
 ) error {
@@ -37,24 +39,24 @@ func (r *Reconciler) updateServerStatus(
 		if err != nil {
 			log.Error(err, "unable to get PVC reference")
 		}
-		ms.Status.Storage.PVCRef = pvcRef
+		c.ms.Status.Storage.PVCRef = pvcRef
 	}
 	if c.runner != nil {
 		podRef, err := ref.GetReference(r.Scheme, c.runner)
 		if err != nil {
 			log.Error(err, "unable to get Pod reference")
 		}
-		ms.Status.Runner.PodRef = podRef
-		ms.Status.Runner.PodIP = c.runner.Status.PodIP
+		c.ms.Status.Runner.PodRef = podRef
+		c.ms.Status.Runner.PodIP = c.runner.Status.PodIP
 	}
 	if c.uploader != nil {
 		podRef, err := ref.GetReference(r.Scheme, c.uploader)
 		if err != nil {
 			log.Error(err, "unable to get Pod reference")
 		}
-		ms.Status.Uploader.PodRef = podRef
+		c.ms.Status.Uploader.PodRef = podRef
 	}
-	ms.Status.State = state
+	c.ms.Status.State = state
 
-	return r.Status().Update(ctx, ms)
+	return r.Status().Update(ctx, c.ms)
 }

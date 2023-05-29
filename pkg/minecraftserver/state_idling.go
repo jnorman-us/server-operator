@@ -17,7 +17,8 @@ func (i Idling) CheckConditions(c *Conditions) bool {
 	return storageExists(c.storage) &&
 		!podExists(c.runner) &&
 		!podExists(c.uploader) &&
-		!serverNeedsBackup(c.ms)
+		!serverNeedsBackup(c.ms) &&
+		!serverTerminating(c.ms)
 }
 
 func (i Idling) Action(ctx context.Context, r *Reconciler, c *Conditions) error {

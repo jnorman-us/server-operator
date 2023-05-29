@@ -1,0 +1,13 @@
+apiVersion: mcsp.com/v1
+kind: MinecraftServer
+metadata:
+  name: vanilla-minecraft
+spec:
+  active: true
+  server: 
+    id: "vanilla-minecraft"
+    jarfile: "server.jar"
+    heapMax: 4096M
+    heapInit: 4096M
+  storage:
+    capacity: 20Gi

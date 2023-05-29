@@ -31,7 +31,7 @@ func (Running) Action(ctx context.Context, r *Reconciler, c *Conditions) error {
 		}
 		log.V(1).Info("annotated as NeedsBackup")
 	}
-	if !c.ms.Spec.Active {
+	if !c.ms.Spec.Active || serverTerminating(c.ms) {
 		log.V(1).Info("deleting runner", "pod", runnerName)
 		if err := r.Delete(ctx, c.runner); err != nil {
 			log.Error(err, "failed to delete runner", "pod", runnerName)

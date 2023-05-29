@@ -4,6 +4,7 @@ import (
 	"context"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -15,6 +16,8 @@ import (
 var (
 	apiGVStr        = mcspv1.GroupVersion.String()
 	ownerVirtualKey = ".metadata.ownerMinecraftServer"
+
+	minecraftServerFinalizer = "minecraftserver.mcsp.com/finalizer"
 )
 
 var states = []State{
@@ -25,6 +28,7 @@ var states = []State{
 	Deactivating{},
 	BackingUp{},
 	CleaningUp{},
+	Deleting{},
 	Error{},
 }
 
@@ -58,25 +62,29 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	var ms mcspv1.MinecraftServer
 	if err := r.Get(ctx, req.NamespacedName, &ms); err != nil {
+		if errors.IsNotFound(err) {
+			log.V(1).Info("skipping, not found...")
+			return ctrl.Result{}, nil
+		}
 		log.Error(err, "unable to fetch")
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		return ctrl.Result{}, err
 	}
 
 	var conditions = Conditions{
 		ms: &ms,
 	}
 	var fetchErr error
-	conditions.storage, fetchErr = r.getStorage(ctx, &ms)
+	conditions.storage, fetchErr = r.getStorage(ctx, conditions.ms)
 	if fetchErr != nil {
 		log.Error(fetchErr, "unable to fetch storage PVC")
 		return ctrl.Result{}, fetchErr
 	}
-	conditions.runner, fetchErr = r.getRunner(ctx, &ms)
+	conditions.runner, fetchErr = r.getRunner(ctx, conditions.ms)
 	if fetchErr != nil {
 		log.Error(fetchErr, "unable to fetch runner Pod")
 		return ctrl.Result{}, fetchErr
 	}
-	conditions.uploader, fetchErr = r.getUploader(ctx, &ms)
+	conditions.uploader, fetchErr = r.getUploader(ctx, conditions.ms)
 	if fetchErr != nil {
 		log.Error(fetchErr, "unable to fetch uploader Pod")
 		return ctrl.Result{}, fetchErr
@@ -100,9 +108,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		log.V(1).Info("performed Action", "currentState", currentState.State())
 	}
 
-	updateStatusError := r.updateServerStatus(ctx, &ms, currentState.State(), &conditions)
+	updateStatusError := r.updateServerStatus(ctx, currentState.State(), &conditions)
 	if updateStatusError != nil {
-		log.Error(updateStatusError, "failed to update MinecraftServer status")
+		log.Error(updateStatusError, "failed to update status")
 	}
 
 	return ctrl.Result{}, nil
