@@ -23,6 +23,9 @@ const (
 func storageExists(storage *corev1.PersistentVolumeClaim) bool {
 	return storage != nil
 }
+func storageDeleting(storage *corev1.PersistentVolumeClaim) bool {
+	return storage != nil && !storage.ObjectMeta.DeletionTimestamp.IsZero()
+}
 
 func (r *Reconciler) setupPVCOwnerIndexer(mgr ctrl.Manager) error {
 	return mgr.GetFieldIndexer().IndexField(
@@ -67,9 +70,11 @@ func (r *Reconciler) constructStorage(ms *mcspv1.MinecraftServer) (*corev1.Persi
 			Name:      fmt.Sprintf("%s-storage", ms.Name),
 			Namespace: ms.Namespace,
 			Labels: map[string]string{
+				OperatorLabel: OperatorLabelValue,
 				ServerIDLabel: ms.Spec.Server.ID,
 			},
 			Annotations: make(map[string]string),
+			Finalizers:  []string{minecraftServerFinalizer},
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			StorageClassName: &storageClassName,

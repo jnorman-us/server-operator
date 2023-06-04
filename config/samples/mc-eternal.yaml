@@ -1,17 +1,21 @@
 apiVersion: mcsp.com/v1
 kind: MinecraftServer
 metadata:
-  name: vanilla-minecraft
+  name: mc-eternal
 spec:
   active: true
   server:
-    id: vanilla-minecraft
-    image: itzg/minecraft-server
+    id: mc-eternal
+    image: itzg/minecraft-server:java8
     env:
+      - name: TYPE
+        value: FORGE
+      - name: VERSION
+        value: "1.12.2"
+      - name: FORGE_VERSION
+        value: "14.23.5.2860"
       - name: MEMORY
-        value: 4G
-      - name: STOP_SERVER_ANNOUNCE_DELAY
-        value: "10"
+        value: 8G
   storage:
     capacity: 20Gi
 ---

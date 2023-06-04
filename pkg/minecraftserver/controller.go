@@ -100,18 +100,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	actionErr := currentState.Action(ctx, r, &conditions)
 	if actionErr != nil && IsNoAction(actionErr) {
-		log.V(1).Info("performed no Action", "currentState", currentState.State())
+		log.V(1).Info("no change, updating status", "currentState", currentState.State())
+		return ctrl.Result{}, r.constructStatus(ctx, currentState.State(), &conditions)
+	} else if actionErr != nil && IsNeedsRequeue(actionErr) {
+		log.V(1).Info("reconcile needs requeue", "currentState", currentState.State())
+		return ctrl.Result{Requeue: true}, nil
 	} else if actionErr != nil {
-		log.Error(actionErr, "error performing Action", "currentState", currentState.State())
+		log.Error(actionErr, "error reconciling", "currentState", currentState.State())
 		return ctrl.Result{}, actionErr
 	} else {
-		log.V(1).Info("performed Action", "currentState", currentState.State())
+		log.V(1).Info("changed", "currentState", currentState.State())
+		return ctrl.Result{}, nil
 	}
-
-	updateStatusError := r.updateServerStatus(ctx, currentState.State(), &conditions)
-	if updateStatusError != nil {
-		log.Error(updateStatusError, "failed to update status")
-	}
-
-	return ctrl.Result{}, nil
 }

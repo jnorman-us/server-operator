@@ -29,27 +29,26 @@ func (r *Reconciler) getUploader(ctx context.Context, ms *mcspv1.MinecraftServer
 	return nil, nil
 }
 
-func uploaderCompleted(pod *corev1.Pod) bool {
-	return pod != nil && pod.Status.Phase == corev1.PodSucceeded
-}
-
 func (r *Reconciler) constructUploader(ms *mcspv1.MinecraftServer, pvc *corev1.PersistentVolumeClaim) (*corev1.Pod, error) {
 	storageVolumeName := "storage"
+	zipVolumeName := "zip-storage"
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-uploader", ms.Name),
 			Namespace: ms.Namespace,
 			Labels: map[string]string{
+				OperatorLabel: OperatorLabelValue,
 				ServerIDLabel: ms.Spec.Server.ID,
 				PodTypeLabel:  PodTypeLabelUploader,
 			},
 			Annotations: make(map[string]string),
+			Finalizers:  []string{minecraftServerFinalizer},
 		},
 		Spec: corev1.PodSpec{
 			RestartPolicy: "Never",
 			Containers: []corev1.Container{{
 				Name:            "uploader",
-				Image:           "localhost:32000/mcsp/server-uploader:v1.0.0",
+				Image:           "localhost:32000/mcsp/uploader:v1.0.2",
 				ImagePullPolicy: corev1.PullAlways,
 				Env: []corev1.EnvVar{{
 					Name:  "SERVER_ID",
@@ -64,6 +63,9 @@ func (r *Reconciler) constructUploader(ms *mcspv1.MinecraftServer, pvc *corev1.P
 				VolumeMounts: []corev1.VolumeMount{{
 					Name:      storageVolumeName,
 					MountPath: "/minecraft",
+				}, {
+					Name:      zipVolumeName,
+					MountPath: "/zip",
 				}},
 			}},
 			Volumes: []corev1.Volume{{
@@ -72,6 +74,11 @@ func (r *Reconciler) constructUploader(ms *mcspv1.MinecraftServer, pvc *corev1.P
 					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 						ClaimName: pvc.Name,
 					},
+				},
+			}, {
+				Name: zipVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			}},
 		},

@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mc-server-operator
+  namespace: operators
+spec:
+  selector:
+    matchLabels:
+      app: mc-server-operator
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mc-server-operator
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+      - name: operator
+        image: localhost:32000/mcsp/server-operator:v1.0.0
+        command:
+        - /manager
+        args:
+        - --leader-elect
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - "ALL"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+      terminationGracePeriodSeconds: 10

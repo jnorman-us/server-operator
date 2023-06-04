@@ -43,8 +43,17 @@ func (r *Reconciler) setupPodOwnerIndexer(mgr ctrl.Manager) error {
 func podExists(pod *corev1.Pod) bool {
 	return pod != nil
 }
+func podPending(pod *corev1.Pod) bool {
+	return pod != nil && pod.Status.Phase == corev1.PodPending
+}
 func podRunning(pod *corev1.Pod) bool {
 	return pod != nil && pod.Status.Phase == corev1.PodRunning
+}
+func podSucceeded(pod *corev1.Pod) bool {
+	return pod != nil && pod.Status.Phase == corev1.PodSucceeded
+}
+func podFailed(pod *corev1.Pod) bool {
+	return pod != nil && pod.Status.Phase == corev1.PodFailed
 }
 func podTerminating(pod *corev1.Pod) bool {
 	return pod != nil && !pod.ObjectMeta.DeletionTimestamp.IsZero()
@@ -70,12 +79,17 @@ func (r *Reconciler) getRunner(ctx context.Context, ms *mcspv1.MinecraftServer) 
 func (r *Reconciler) constructRunner(ms *mcspv1.MinecraftServer, pvc *corev1.PersistentVolumeClaim) (*corev1.Pod, error) {
 	storageVolumeName := "storage"
 	zipVolumeName := "zip-storage"
+	needsInit := "TRUE"
+	if serverStorageInitialized(ms) {
+		needsInit = "FALSE"
+	}
 	terminationGracePeriodSeconds := int64(120)
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-server", ms.Name),
 			Namespace: ms.Namespace,
 			Labels: map[string]string{
+				OperatorLabel: OperatorLabelValue,
 				ServerIDLabel: ms.Spec.Server.ID,
 				PodTypeLabel:  PodTypeLabelRunner,
 			},
@@ -88,10 +102,13 @@ func (r *Reconciler) constructRunner(ms *mcspv1.MinecraftServer, pvc *corev1.Per
 			InitContainers: []corev1.Container{
 				{
 					Name:            "loader",
-					Image:           "localhost:32000/mcsp/server-loader:v1.0.0",
+					Image:           "localhost:32000/mcsp/loader:v1.0.2",
 					ImagePullPolicy: "Always",
 
 					Env: []corev1.EnvVar{{
+						Name:  "NEEDS_INIT",
+						Value: needsInit,
+					}, {
 						Name:  "SERVER_ID",
 						Value: ms.Spec.Server.ID,
 					}, {
@@ -105,28 +122,19 @@ func (r *Reconciler) constructRunner(ms *mcspv1.MinecraftServer, pvc *corev1.Per
 					VolumeMounts: []corev1.VolumeMount{{
 						Name:      storageVolumeName,
 						MountPath: "/minecraft",
+					}, {
+						Name:      zipVolumeName,
+						MountPath: "/zip",
 					}},
 				},
 			},
 			Containers: []corev1.Container{{
 				Name:            "runner",
-				Image:           "localhost:32000/mcsp/server-runner:v1.0.0",
+				Image:           ms.Spec.Server.Image,
 				ImagePullPolicy: corev1.PullAlways,
 
 				Stdin: true,
-				Env: []corev1.EnvVar{{
-					Name:  "SERVER_ID",
-					Value: ms.Spec.Server.ID,
-				}, {
-					Name:  "SERVER_JAR",
-					Value: ms.Spec.Server.Jarfile,
-				}, {
-					Name:  "HEAP_MAX",
-					Value: ms.Spec.Server.HeapMax,
-				}, {
-					Name:  "HEAP_INIT",
-					Value: ms.Spec.Server.HeapInit,
-				}},
+				Env:   ms.Spec.Server.Env,
 
 				Ports: []corev1.ContainerPort{{
 					Name:          "tcp-minecraft",
@@ -134,7 +142,7 @@ func (r *Reconciler) constructRunner(ms *mcspv1.MinecraftServer, pvc *corev1.Per
 				}},
 				VolumeMounts: []corev1.VolumeMount{{
 					Name:      storageVolumeName,
-					MountPath: "/minecraft",
+					MountPath: "/data",
 				}},
 			}},
 

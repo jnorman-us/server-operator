@@ -21,8 +21,12 @@ type State interface {
 	Action(context.Context, *Reconciler, *Conditions) error
 }
 
+var ErrNeedsRequeue = errors.New("needs requeue")
 var ErrNoAction = errors.New("no action")
 
 func IsNoAction(err error) bool {
 	return err.Error() == ErrNoAction.Error()
+}
+func IsNeedsRequeue(err error) bool {
+	return err.Error() == ErrNeedsRequeue.Error()
 }
