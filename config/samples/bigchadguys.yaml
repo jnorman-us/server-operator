@@ -1,0 +1,42 @@
+apiVersion: mcsp.com/v1
+kind: MinecraftServer
+metadata:
+  name: bigchadguys
+spec:
+  active: true
+  server:
+    id: bigchadguys
+    image: itzg/minecraft-server:latest
+    env:
+      - name: EULA
+        value: "TRUE"
+      - name: TYPE
+        value: FABRIC
+      - name: VERSION
+        value: "1.19.2"
+      - name: FABRIC_LOADER_VERSION
+        value: "0.14.19"
+      - name: MEMORY
+        value: 16G
+      - name: STOP_SERVER_ANNOUNCE_DELAY
+        value: "3"
+  storage:
+    capacity: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bigchadguys-service
+  labels:
+    mcsp.com/serverId: bigchadguys
+spec:
+  type: NodePort
+  selector:
+    mcsp.com/pod-role: runner
+    mcsp.com/serverId: bigchadguys
+  ports:
+  - name: tcp-minecraft
+    protocol: TCP
+    port: 25565
+    targetPort: tcp-minecraft
+    nodePort: 32001

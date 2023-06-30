@@ -1,13 +1,15 @@
 apiVersion: mcsp.com/v1
 kind: MinecraftServer
 metadata:
-  name: mc-eternal
+  name: tekxit-pi
 spec:
-  active: true
+  active: false
   server:
-    id: mc-eternal
+    id: tekxit-pi
     image: itzg/minecraft-server:java8
     env:
+      - name: EULA
+        value: "TRUE"
       - name: TYPE
         value: FORGE
       - name: VERSION
@@ -15,24 +17,26 @@ spec:
       - name: FORGE_VERSION
         value: "14.23.5.2860"
       - name: MEMORY
-        value: 8G
+        value: 16G
+      - name: STOP_SERVER_ANNOUNCE_DELAY
+        value: "20"
   storage:
     capacity: 20Gi
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: vanilla-minecraft-service
+  name: tekxit-pi-service
   labels:
-    mcsp.com/serverId: vanilla-minecraft
+    mcsp.com/serverId: tekxit-pi
 spec:
   type: NodePort
   selector:
     mcsp.com/pod-role: runner
-    mcsp.com/serverId: vanilla-minecraft
+    mcsp.com/serverId: tekxit-pi
   ports:
   - name: tcp-minecraft
     protocol: TCP
     port: 25565
     targetPort: tcp-minecraft
-    nodePort: 30565
+    nodePort: 32001

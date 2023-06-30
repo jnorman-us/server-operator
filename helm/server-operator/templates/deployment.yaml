@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mc-server-operator
-  namespace: operators
 spec:
   selector:
     matchLabels:
@@ -18,6 +17,7 @@ spec:
       containers:
       - name: operator
         image: localhost:32000/mcsp/server-operator:v1.0.0
+        imagePullPolicy: Always
         command:
         - /manager
         args:

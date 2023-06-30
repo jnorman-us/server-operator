@@ -3,7 +3,7 @@ kind: MinecraftServer
 metadata:
   name: vanilla-minecraft
 spec:
-  active: true
+  active: false
   server:
     id: vanilla-minecraft
     image: itzg/minecraft-server
@@ -31,4 +31,4 @@ spec:
     protocol: TCP
     port: 25565
     targetPort: tcp-minecraft
-    nodePort: 30565
+    nodePort: 32003
